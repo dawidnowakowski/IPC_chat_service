@@ -1,1 +1,1 @@
-# IPC_char_service
+# IPC_chat_service
