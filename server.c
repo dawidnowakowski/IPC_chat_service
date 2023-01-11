@@ -12,7 +12,7 @@
 struct user
 {
     char username[10];
-    char password[10] ;
+    char password[10];
 };
 
 
@@ -23,11 +23,7 @@ struct msgbuf
 } my_msg;
 
 
-
-int main(){
-
-
-
+void openFileAndFillUserList(char filename[], struct user users[]){
     int user_file = open("user_list", O_RDONLY);
     if(user_file == -1){
         printf("code: %d\n", errno);
@@ -39,24 +35,19 @@ int main(){
     int n;
     char buf, usernamebuf[10], passwordbuf[10];
     int i = 0, user_or_pass = 0, counter=0;
-    struct user users[9];
+    
     
 
     while((n=read(user_file, &buf, 1))>0){
-        if(buf != ' ' && buf != '\n'){
+        if(buf != ' ' && buf != '\n'){ //if letter then put it in username buffer and password buffer
             if (user_or_pass % 2 == 0){
-              
                 usernamebuf[i] = buf;
-                // printf("%c", usernamebuf[i]);
-
                 i++;
-            }             
-            else{
+            } else{
                 passwordbuf[i] = buf;
-                // printf("%c", passwordbuf[i]);
                 i++;            
             }
-        } 
+        } //if space or new line copy them into struct array and prepare for next iteration
         if(buf == ' ' || buf == '\n'){
             if(buf == ' '){
                 usernamebuf[i]='\0';
@@ -69,15 +60,23 @@ int main(){
             i=0;
             user_or_pass++;
             if(user_or_pass % 2 == 0){
-                // printf("username: %s password: %s\n", usernamebuf, passwordbuf);
                 counter++;
             }
         }
     }
-    strcpy(users[counter].password, passwordbuf);
-    for(int j=0; j<9; j++){
+    strcpy(users[counter].password, passwordbuf); //last password cant be copied in loop
+}
+
+void printAllUsers(struct user users[], int len){
+    for(int j=0; j < len; j++){
         printf("%d: %s %s\n", j, users[j].username, users[j].password);
     }
+}
 
-
+int main(){
+    struct user users[9];
+    char filename[] = "user_list";
+    openFileAndFillUserList(filename, users);
+    int num_of_users = sizeof(users)/sizeof(users[0]);
+    printAllUsers(users, num_of_users);
 }
