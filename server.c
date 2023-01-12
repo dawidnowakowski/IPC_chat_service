@@ -19,8 +19,9 @@ struct user
 {
     char username[10];
     char password[10];
-    int isLogged;
+    int is_kogged;
     struct group groups[3]; 
+    int queue_ID;
 };
 
 
@@ -29,8 +30,6 @@ struct msgbuf
     long type;
     int liczba;
 } my_msg;
-
-
 
 
 void openFileAndFillUserList(char filename[], struct user users[]){
@@ -83,7 +82,6 @@ void printAllUsers(struct user users[], int len){
     }
 }
 
-
 void openFileAndFillGroups(struct group groups[], char filename[]){
     int topics = open(filename, O_RDONLY);
     if(topics == -1){
@@ -99,7 +97,6 @@ void openFileAndFillGroups(struct group groups[], char filename[]){
         if(buf != '\n'){
             groupnamebuf[j] = buf;
             j++;
-            // printf("%c", buf);
         } else{
             groupnamebuf[j] = '\0';
             strcpy(groups[id].groupname, groupnamebuf);
@@ -135,8 +132,12 @@ int main(){
     openFileAndFillGroups(groups, "topic_groups");
     int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
     printAllGroups(groups, num_of_groups);
-
-    // printf("%s", groups[1].groupname);
-
     
+    int LOGIN_QUEUE = 
+
+    int STARTING_QUEUE_ID = 8000
+    for(int i=0; i<num_of_users, i++){
+        users[i].STARTING_QUEUE_ID
+    }
+
 }
