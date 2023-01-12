@@ -9,10 +9,18 @@
 #include <errno.h>
 #include <stdlib.h>
 
+struct group
+{
+    int id;
+    char groupname[20];
+};
+
 struct user
 {
     char username[10];
     char password[10];
+    int isLogged;
+    struct group groups[3]; 
 };
 
 
@@ -21,6 +29,8 @@ struct msgbuf
     long type;
     int liczba;
 } my_msg;
+
+
 
 
 void openFileAndFillUserList(char filename[], struct user users[]){
@@ -73,10 +83,60 @@ void printAllUsers(struct user users[], int len){
     }
 }
 
+
+void openFileAndFillGroups(struct group groups[], char filename[]){
+    int topics = open(filename, O_RDONLY);
+    if(topics == -1){
+        printf("code: %d\n", errno);
+        perror("Can't open file");
+        exit(1);
+    }
+
+    int id = 0, j=0, n;
+    char buf;
+    char groupnamebuf[20];
+    while((n=read(topics, &buf, 1))>0){
+        if(buf != '\n'){
+            groupnamebuf[j] = buf;
+            j++;
+            // printf("%c", buf);
+        } else{
+            groupnamebuf[j] = '\0';
+            strcpy(groups[id].groupname, groupnamebuf);
+            groups[id].id = id;
+            groupnamebuf[0] = '\0';
+            
+            id++;
+            j=0;
+        }
+        
+
+    }
+    strcpy(groups[id].groupname, groupnamebuf);
+    groups[id].id = id;
+}
+
+void printAllGroups(struct group groups[], int len){
+
+    for(int j=0; j < len; j++){
+        printf("%d: %s %d\n", j, groups[j].groupname, groups[j].id);
+
+    }
+}
+
 int main(){
     struct user users[9];
     char filename[] = "user_list";
     openFileAndFillUserList(filename, users);
     int num_of_users = sizeof(users)/sizeof(users[0]);
     printAllUsers(users, num_of_users);
+
+    struct group groups[3];
+    openFileAndFillGroups(groups, "topic_groups");
+    int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
+    printAllGroups(groups, num_of_groups);
+
+    // printf("%s", groups[1].groupname);
+
+    
 }
