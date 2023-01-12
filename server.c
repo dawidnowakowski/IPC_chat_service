@@ -19,17 +19,18 @@ struct user
 {
     char username[10];
     char password[10];
-    int is_kogged;
+    int is_logged;
     struct group groups[3]; 
-    int queue_ID;
+    int PID;
 };
 
 
 struct msgbuf
 {
     long type;
-    int liczba;
-} my_msg;
+    int pid;
+    char text[1024];
+};
 
 
 void openFileAndFillUserList(char filename[], struct user users[]){
@@ -128,16 +129,32 @@ int main(){
     int num_of_users = sizeof(users)/sizeof(users[0]);
     printAllUsers(users, num_of_users);
 
-    struct group groups[3];
-    openFileAndFillGroups(groups, "topic_groups");
-    int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
-    printAllGroups(groups, num_of_groups);
-    
-    int LOGIN_QUEUE = 
+    // struct group groups[3];
+    // openFileAndFillGroups(groups, "topic_groups");
+    // int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
+    // printAllGroups(groups, num_of_groups);
 
-    int STARTING_QUEUE_ID = 8000
-    for(int i=0; i<num_of_users, i++){
-        users[i].STARTING_QUEUE_ID
-    }
+    struct msgbuf login_message;    
+    int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);
+    msgrcv(LOGIN_QUEUE, &login_message, sizeof(int)+1024, 1, 0);
+    // printf("%d %s\n", login_message.pid, login_message.text);
+
+    char username[10];
+    char passwd[10];
+    char *token = strtok(login_message.text, " ");
+
+
+    strcpy(username, token);
+
+    token = strtok(NULL, " ");
+
+    strcpy(passwd, token);
+
+
+    printf("%s %s\n", username, passwd);
+
+    
+
+
 
 }
