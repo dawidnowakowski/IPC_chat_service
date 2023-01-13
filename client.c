@@ -22,15 +22,13 @@ int main(){
     int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);   
     int PID = getpid();
     struct msgbuf login_message;
-    char credits[] = "test1 passwd1";
+    char credits[] = "test5 passwd5";
     strcpy(login_message.text, credits);
     login_message.pid = PID;
     login_message.type = 1;
 
     msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen(credits)+1, 0);
-
-    msgrcv(LOGIN_QUEUE, &login_message, sizeof(int)+1024, PID, 0);
-    // msgsnd(LOGIN_QUEUE, &login_message, strlen(credits)+1, 0);
+    // msgrcv(LOGIN_QUEUE, &login_message, sizeof(int)+1024, PID, 0);
 
 
 

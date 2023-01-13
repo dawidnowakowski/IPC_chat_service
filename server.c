@@ -9,27 +9,30 @@
 #include <errno.h>
 #include <stdlib.h>
 
-struct group
-{
-    int id;
-    char groupname[20];
-};
+
 
 struct user
 {
     char username[10];
     char password[10];
-    int is_logged;
-    struct group groups[3]; 
-    int PID;
+    int groups[3]; 
+    int is_logged; // 0 - not logged, 1 - logged in
+    int PID; //PID is key of message queue
+    int failed_attempts; //if 3 then don't allow more attempts
 };
 
+struct group
+{
+    int id;
+    char groupname[20];
+    struct user users[9]; // can it be blank? 
+};
 
 struct msgbuf
 {
     long type;
-    int pid;
-    char text[1024];
+    int PID; //PID will be a message queue key
+    char text[1024]; //message
 };
 
 
@@ -66,6 +69,9 @@ void openFileAndFillUserList(char filename[], struct user users[]){
             } else{
                 strcpy(users[counter].password, passwordbuf);
                 passwordbuf[0] = '\0';
+                users[counter].is_logged = 0;
+                users[counter].PID = 0;
+                users[counter].failed_attempts = 0;
             }
             i=0;
             user_or_pass++;
@@ -75,11 +81,25 @@ void openFileAndFillUserList(char filename[], struct user users[]){
         }
     }
     strcpy(users[counter].password, passwordbuf); //last password cant be copied in loop
+    users[counter].is_logged = 0;
+    users[counter].PID = 0;
+    users[counter].failed_attempts = 0;
+}
+
+void printUserInfo(struct user user){
+    printf("username: %s password: %s is_logged: %d PID: %d failed_attempts: %d\n", user.username, user.password, user.is_logged, user.PID, user.failed_attempts);
 }
 
 void printAllUsers(struct user users[], int len){
     for(int j=0; j < len; j++){
         printf("%d: %s %s\n", j, users[j].username, users[j].password);
+    }
+}
+
+void printAllUsersInfo(struct user users[], int len){
+    for(int j=0; j < len; j++){
+        // printf("%d: username: %s password: %s is_logged: %d PID: %d failed_attempts: %d\n", j, users[j].username, users[j].password, users[j].is_logged, users[j].PID, users[j].failed_attempts);
+        printUserInfo(users[j]);
     }
 }
 
@@ -123,35 +143,58 @@ void printAllGroups(struct group groups[], int len){
 }
 
 int main(){
+    //open users file and fill array with users
     struct user users[9];
     char filename[] = "user_list";
     openFileAndFillUserList(filename, users);
     int num_of_users = sizeof(users)/sizeof(users[0]);
-    printAllUsers(users, num_of_users);
+    // printAllUsers(users, num_of_users);
+    printAllUsersInfo(users, num_of_users);
 
-    // struct group groups[3];
-    // openFileAndFillGroups(groups, "topic_groups");
-    // int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
-    // printAllGroups(groups, num_of_groups);
+    //open groups file and fill array with groups
+    struct group groups[3];
+    openFileAndFillGroups(groups, "topic_groups");
+    int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
+    printAllGroups(groups, num_of_groups);
 
     struct msgbuf login_message;    
     int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);
     msgrcv(LOGIN_QUEUE, &login_message, sizeof(int)+1024, 1, 0);
-    // printf("%d %s\n", login_message.pid, login_message.text);
-
     char username[10];
     char passwd[10];
     char *token = strtok(login_message.text, " ");
 
 
     strcpy(username, token);
-
     token = strtok(NULL, " ");
-
     strcpy(passwd, token);
+    printf("PID: %d username: %s password: %s\n", login_message.PID, username, passwd);
 
 
-    printf("%s %s\n", username, passwd);
+    
+    for(int i=0; i<num_of_users; i++){
+        if(strcmp(username, users[i].username) == 0){ //if username is found in user list
+            printf("%s %s\n", username, users[i].username);
+            //if limit of wrong attempts is not reached and user is not logged in
+            if(users[i].failed_attempts < 3 && users[i].is_logged == 0){ 
+                //if correct password send message and open message queue with PID as a key
+                //else increment failed attempts counter
+                if(strcmp(passwd, users[i].password) == 0){
+                    users[i].is_logged = 1;
+                    printf("LOGGED IN %s %s\n", passwd, users[i].password);
+                } else{
+                    users[i].failed_attempts++;
+                }
+            } else {
+                if(users[i].failed_attempts >= 3){
+                    printf("Reached the limit of failed attempts, user is now blocked\n");
+                }
+                if (users[i].is_logged == 1){
+                    printf("User is already logged in another process\n");
+                }
+            }
+        }
+    }
 
     
 
