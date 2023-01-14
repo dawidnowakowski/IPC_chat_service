@@ -10,7 +10,6 @@
 #include <stdlib.h>
 
 
-
 struct user
 {
     char username[10];
@@ -19,6 +18,7 @@ struct user
     int is_logged; // 0 - not logged, 1 - logged in
     int PID; //PID is key of message queue
     int failed_attempts; //if 3 then don't allow more attempts
+    int position_in_queue_list;
 };
 
 struct group
@@ -143,6 +143,9 @@ void printAllGroups(struct group groups[], int len){
 }
 
 int main(){
+    int QUEUES[15];
+    int QUEUES_COUNTER = 0;
+
     //open users file and fill array with users
     struct user users[9];
     char filename[] = "user_list";
@@ -157,6 +160,10 @@ int main(){
     int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
     printAllGroups(groups, num_of_groups);
 
+
+    
+
+    
     struct msgbuf login_message;    
     int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);
     msgrcv(LOGIN_QUEUE, &login_message, sizeof(int)+1024, 1, 0);
@@ -164,40 +171,64 @@ int main(){
     char passwd[10];
     char *token = strtok(login_message.text, " ");
 
-
+    
     strcpy(username, token);
     token = strtok(NULL, " ");
     strcpy(passwd, token);
     printf("PID: %d username: %s password: %s\n", login_message.PID, username, passwd);
 
 
-    
-    for(int i=0; i<num_of_users; i++){
+    int i=0;
+    for(i=0; i<num_of_users; i++){
+        // printf("%d\n", i);
         if(strcmp(username, users[i].username) == 0){ //if username is found in user list
             printf("%s %s\n", username, users[i].username);
             //if limit of wrong attempts is not reached and user is not logged in
             if(users[i].failed_attempts < 3 && users[i].is_logged == 0){ 
                 //if correct password send message and open message queue with PID as a key
                 //else increment failed attempts counter
-                if(strcmp(passwd, users[i].password) == 0){
-                    users[i].is_logged = 1;
+                if(strcmp(passwd, users[i].password) == 0){ //good passwd
+                    users[i].is_logged = 1; //switch user status
+                    users[i].position_in_queue_list = QUEUES_COUNTER; //remember the position of users queue in queuelist
+                    QUEUES[QUEUES_COUNTER++] = msgget(login_message.PID, 0664 | IPC_CREAT);
+                    login_message.type = login_message.PID;
+                    strcpy(login_message.text, "1");
+                    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("1")+1, 0);
                     printf("LOGGED IN %s %s\n", passwd, users[i].password);
-                } else{
+                    
+                    
+                } else{ //bad passwd
+                    login_message.type = login_message.PID;
+                    strcpy(login_message.text, "0");
+                    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("0")+1, 0);
                     users[i].failed_attempts++;
+                    
                 }
-            } else {
-                if(users[i].failed_attempts >= 3){
+            } else { //failed attempts max or user logged in
+                if(users[i].failed_attempts >= 3){ //limit login attempts
+                    login_message.type = login_message.PID;
+                    strcpy(login_message.text, "2");
+                    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("2")+1, 0);
                     printf("Reached the limit of failed attempts, user is now blocked\n");
+                    
                 }
-                if (users[i].is_logged == 1){
+                else if (users[i].is_logged == 1){ //user logged in
+                    login_message.type = login_message.PID;
+                    strcpy(login_message.text, "3");
+                    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("3")+1, 0);
                     printf("User is already logged in another process\n");
+                    
                 }
             }
+            return 0;
         }
     }
-
     
-
+    login_message.type = login_message.PID;
+    strcpy(login_message.text, "4");
+    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("4")+1, 0);
+    printf("Username not found!\n");
+    return 1;
 
 
 }
