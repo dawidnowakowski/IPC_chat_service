@@ -18,7 +18,7 @@ struct user
     int is_logged; // 0 - not logged, 1 - logged in
     int PID; //PID is key of message queue
     int failed_attempts; //if 3 then don't allow more attempts
-    int position_in_queue_list;
+    int QUEUEID; //queueid
 };
 
 struct group
@@ -72,6 +72,7 @@ void openFileAndFillUserList(char filename[], struct user users[]){
                 users[counter].is_logged = 0;
                 users[counter].PID = 0;
                 users[counter].failed_attempts = 0;
+                users[counter].QUEUEID = -1;
             }
             i=0;
             user_or_pass++;
@@ -84,10 +85,11 @@ void openFileAndFillUserList(char filename[], struct user users[]){
     users[counter].is_logged = 0;
     users[counter].PID = 0;
     users[counter].failed_attempts = 0;
+    users[counter].QUEUEID = -1;
 }
 
 void printUserInfo(struct user user){
-    printf("username: %s password: %s is_logged: %d PID: %d failed_attempts: %d\n", user.username, user.password, user.is_logged, user.PID, user.failed_attempts);
+    printf("username: %s password: %s is_logged: %d PID: %d failed_attempts: %d, QUEUEID: %d\n", user.username, user.password, user.is_logged, user.PID, user.failed_attempts, user.QUEUEID);
 }
 
 void printAllUsers(struct user users[], int len){
@@ -142,17 +144,33 @@ void printAllGroups(struct group groups[], int len){
     }
 }
 
-int main(){
-    int QUEUES[15];
-    int QUEUES_COUNTER = 0;
+void handleLogIn(int num_of_users, struct msgbuf login_message, struct user* ACTIVE_USERS[], struct user users[], int* ACTIVE_USERS_COUNTER){
+    // for(int x=0; x<num_of_users; x++){
+    //     // ACTIVE_USERS[x] = NULL;
+    //     ACTIVE_USERS[x] = &users[x];
+    //     printf("siema: %s\n", ACTIVE_USERS[x]->username);
+    // }
+}
 
+
+
+int main(){
+    struct user* ACTIVE_USERS[9];
+    int ACTIVE_USERS_COUNTER=0;
+    for(int x=0; x<num_of_users; x++){
+        ACTIVE_USERS[x] = NULL;
+        // ACTIVE_USERS[x] = &users[x];
+        // printf("%s\n", ACTIVE_USERS[x]->username);
+    }
+    
+    
     //open users file and fill array with users
     struct user users[9];
     char filename[] = "user_list";
     openFileAndFillUserList(filename, users);
     int num_of_users = sizeof(users)/sizeof(users[0]);
     // printAllUsers(users, num_of_users);
-    printAllUsersInfo(users, num_of_users);
+    // printAllUsersInfo(users, num_of_users);
 
     //open groups file and fill array with groups
     struct group groups[3];
@@ -160,27 +178,64 @@ int main(){
     int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
     printAllGroups(groups, num_of_groups);
 
+    //TESTING PLAYGROUND
 
+
+    
+    // for(int x=0; x<num_of_users; x++){
+    //     // ACTIVE_USERS[x] = NULL;
+    //     ACTIVE_USERS[x] = &users[x];
+    //     printf("%s\n", ACTIVE_USERS[x]->username);
+    // }
+    // printAllUsersInfo(users, num_of_users);
+    // for(int x=0; x<num_of_users; x++){
+    //     ACTIVE_USERS[x] = NULL;
+    //     if(ACTIVE_USERS[x]==NULL){
+    //         printf("TEST\n");
+    //     }
+    //     // ACTIVE_USERS[x] = &users[x];
+    //     printf("%s\n", ACTIVE_USERS[x]->username);
+    // }
+    // printAllUsersInfo(users, num_of_users);
+
+    // for(int xd=0; xd<15; xd++){
+    //     QUEUES[xd]=xd;
+    // }
+    // test(&QUEUES_COUNTER, QUEUES);
+    // for(int xd=0; xd<15; xd++){
+    //     printf("%d\n", QUEUES[xd]);
+    // }
+
+
+    
     
 
     
     struct msgbuf login_message;    
-    int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);
+    int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);  
     msgrcv(LOGIN_QUEUE, &login_message, sizeof(int)+1024, 1, 0);
-    char username[10];
-    char passwd[10];
-    char *token = strtok(login_message.text, " ");
+    
 
     
+
+    handleLogIn(num_of_users, login_message, ACTIVE_USERS, users);
+    strcpy(users[3].username, "ZMIANA");
+    for(int x=0; x<num_of_users; x++){
+        // ACTIVE_USERS[x] = NULL;
+        // ACTIVE_USERS[x] = &users[x];
+        printf("HERE: %s\n", ACTIVE_USERS[x]->username);
+    }
+
+    char username[10];
+    char passwd[10];
+    char *token = strtok(login_message.text, " ");    
     strcpy(username, token);
     token = strtok(NULL, " ");
     strcpy(passwd, token);
     printf("PID: %d username: %s password: %s\n", login_message.PID, username, passwd);
 
-
     int i=0;
     for(i=0; i<num_of_users; i++){
-        // printf("%d\n", i);
         if(strcmp(username, users[i].username) == 0){ //if username is found in user list
             printf("%s %s\n", username, users[i].username);
             //if limit of wrong attempts is not reached and user is not logged in
@@ -189,8 +244,7 @@ int main(){
                 //else increment failed attempts counter
                 if(strcmp(passwd, users[i].password) == 0){ //good passwd
                     users[i].is_logged = 1; //switch user status
-                    users[i].position_in_queue_list = QUEUES_COUNTER; //remember the position of users queue in queuelist
-                    QUEUES[QUEUES_COUNTER++] = msgget(login_message.PID, 0664 | IPC_CREAT);
+                    users[i].QUEUEID = msgget(login_message.PID, 0664 | IPC_CREAT);
                     login_message.type = login_message.PID;
                     strcpy(login_message.text, "1");
                     msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("1")+1, 0);

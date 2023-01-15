@@ -29,7 +29,7 @@ int main(){
     int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);   
     int PID = getpid();
     struct msgbuf login_message;
-    char credits[] = "test51321 passwd5";
+    char credits[] = "test5 passwd5";
     strcpy(login_message.text, credits);
     login_message.PID = PID;
     login_message.type = 1;
