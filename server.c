@@ -144,25 +144,89 @@ void printAllGroups(struct group groups[], int len){
     }
 }
 
-void handleLogIn(int num_of_users, struct msgbuf login_message, struct user* ACTIVE_USERS[], struct user users[], int* ACTIVE_USERS_COUNTER){
+void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struct user* ACTIVE_USERS[], struct user users[], int* ACTIVE_USERS_COUNTER){
     // for(int x=0; x<num_of_users; x++){
     //     // ACTIVE_USERS[x] = NULL;
     //     ACTIVE_USERS[x] = &users[x];
     //     printf("siema: %s\n", ACTIVE_USERS[x]->username);
     // }
+
+    // for(int x=0; x<num_of_users; x++){
+    //     // ACTIVE_USERS[x] = NULL;
+    //     // ACTIVE_USERS[x] = &users[x];
+    //     printf("HERE: %s\n", ACTIVE_USERS[x]->username);
+    // }
+
+    char username[10];
+    char passwd[10];
+    char *token = strtok(message.text, " ");    
+    strcpy(username, token);
+    token = strtok(NULL, " ");
+    strcpy(passwd, token);
+    // printf("PID: %d username: %s password: %s\n", message.PID, username, passwd);
+
+    int i=0;
+    for(i=0; i<num_of_users; i++){
+        if(strcmp(username, users[i].username) == 0){ //if username is found in user list
+            printf("%s %s\n", username, users[i].username);
+            //if limit of wrong attempts is not reached and user is not logged in
+            if(users[i].failed_attempts < 3 && users[i].is_logged == 0){ 
+                //if correct password send message and open message queue with PID as a key
+                //else increment failed attempts counter
+                if(strcmp(passwd, users[i].password) == 0){ //good passwd
+                    users[i].is_logged = 1; //switch user status
+                    users[i].QUEUEID = msgget(message.PID, 0664 | IPC_CREAT);
+                    message.type = message.PID;
+                    strcpy(message.text, "1");
+                    msgsnd(LOGIN_QUEUE, &message, sizeof(int) + strlen("1")+1, 0);
+                    printf("LOGGED IN %s %s\n", passwd, users[i].password);
+                    
+                    for(int u=0; u<num_of_users; u++){
+                        if(ACTIVE_USERS[u] == NULL){
+                            ACTIVE_USERS[u] = &users[i];
+                            break;
+                        }
+                    }
+                    
+                    
+                } else{ //bad passwd
+                    message.type = message.PID;
+                    strcpy(message.text, "0");
+                    msgsnd(LOGIN_QUEUE, &message, sizeof(int) + strlen("0")+1, 0);
+                    users[i].failed_attempts++;
+                    printf("Bad password");
+                    
+                }
+            } else { //failed attempts max or user logged in
+                if(users[i].failed_attempts >= 3){ //limit login attempts
+                    message.type = message.PID;
+                    strcpy(message.text, "2");
+                    msgsnd(LOGIN_QUEUE, &message, sizeof(int) + strlen("2")+1, 0);
+                    printf("Reached the limit of failed attempts, user is now blocked\n");
+                    
+                }
+                else if (users[i].is_logged == 1){ //user logged in
+                    message.type = message.PID;
+                    strcpy(message.text, "3");
+                    msgsnd(LOGIN_QUEUE, &message, sizeof(int) + strlen("3")+1, 0);
+                    printf("User is already logged in another process\n");
+                    
+                }
+            }
+            return;
+        }
+    }
+    
+    message.type = message.PID;
+    strcpy(message.text, "4");
+    msgsnd(LOGIN_QUEUE, &message, sizeof(int) + strlen("4")+1, 0);
+    printf("Username not found!\n");
+    return;
 }
 
 
 
-int main(){
-    struct user* ACTIVE_USERS[9];
-    int ACTIVE_USERS_COUNTER=0;
-    for(int x=0; x<num_of_users; x++){
-        ACTIVE_USERS[x] = NULL;
-        // ACTIVE_USERS[x] = &users[x];
-        // printf("%s\n", ACTIVE_USERS[x]->username);
-    }
-    
+int main(){  
     
     //open users file and fill array with users
     struct user users[9];
@@ -178,10 +242,52 @@ int main(){
     int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
     printAllGroups(groups, num_of_groups);
 
-    //TESTING PLAYGROUND
+    struct user* ACTIVE_USERS[9];
+    int ACTIVE_USERS_COUNTER=0;
+    for(int x=0; x<num_of_users; x++){
+        ACTIVE_USERS[x] = NULL;
+        // ACTIVE_USERS[x] = &users[x];
+        // printf("%s\n", ACTIVE_USERS[x]->username);
+    }
 
+    struct msgbuf message;    
+    int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);  
+    // msgrcv(LOGIN_QUEUE, &message, sizeof(int)+1024, 1, 0);
+    
 
     
+
+    // handleLogIn(LOGIN_QUEUE, num_of_users, message, ACTIVE_USERS, users, &ACTIVE_USERS_COUNTER);
+
+    // msgrcv(LOGIN_QUEUE, &message, sizeof(int)+1024, 1, 0);
+    // handleLogIn(LOGIN_QUEUE, num_of_users, message, ACTIVE_USERS, users, &ACTIVE_USERS_COUNTER);
+    // printAllUsersInfo(users, num_of_users);
+    // for(int x=0; x<num_of_users; x++){
+    //     // ACTIVE_USERS[x] = NULL;
+    //     // ACTIVE_USERS[x] = &users[x];
+    //     printf("%s\n", ACTIVE_USERS[x]->username);
+    // }
+
+
+
+    //MAIN LOOP
+    while(1){
+
+        if(msgrcv(LOGIN_QUEUE, &message, sizeof(int)+1024, 1, IPC_NOWAIT) != -1){
+            handleLogIn(LOGIN_QUEUE, num_of_users, message, ACTIVE_USERS, users, &ACTIVE_USERS_COUNTER);
+        for(int x=0; x<num_of_users; x++){
+            // ACTIVE_USERS[x] = NULL;
+            // ACTIVE_USERS[x] = &users[x];
+            printf("%s siema\n", ACTIVE_USERS[x]->username);
+        }
+
+        } else{
+            // printf("-1\n");
+        }
+        
+    }
+
+    //TESTING PLAYGROUND    
     // for(int x=0; x<num_of_users; x++){
     //     // ACTIVE_USERS[x] = NULL;
     //     ACTIVE_USERS[x] = &users[x];
@@ -211,78 +317,8 @@ int main(){
     
 
     
-    struct msgbuf login_message;    
-    int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);  
-    msgrcv(LOGIN_QUEUE, &login_message, sizeof(int)+1024, 1, 0);
     
 
-    
-
-    handleLogIn(num_of_users, login_message, ACTIVE_USERS, users);
-    strcpy(users[3].username, "ZMIANA");
-    for(int x=0; x<num_of_users; x++){
-        // ACTIVE_USERS[x] = NULL;
-        // ACTIVE_USERS[x] = &users[x];
-        printf("HERE: %s\n", ACTIVE_USERS[x]->username);
-    }
-
-    char username[10];
-    char passwd[10];
-    char *token = strtok(login_message.text, " ");    
-    strcpy(username, token);
-    token = strtok(NULL, " ");
-    strcpy(passwd, token);
-    printf("PID: %d username: %s password: %s\n", login_message.PID, username, passwd);
-
-    int i=0;
-    for(i=0; i<num_of_users; i++){
-        if(strcmp(username, users[i].username) == 0){ //if username is found in user list
-            printf("%s %s\n", username, users[i].username);
-            //if limit of wrong attempts is not reached and user is not logged in
-            if(users[i].failed_attempts < 3 && users[i].is_logged == 0){ 
-                //if correct password send message and open message queue with PID as a key
-                //else increment failed attempts counter
-                if(strcmp(passwd, users[i].password) == 0){ //good passwd
-                    users[i].is_logged = 1; //switch user status
-                    users[i].QUEUEID = msgget(login_message.PID, 0664 | IPC_CREAT);
-                    login_message.type = login_message.PID;
-                    strcpy(login_message.text, "1");
-                    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("1")+1, 0);
-                    printf("LOGGED IN %s %s\n", passwd, users[i].password);
-                    
-                    
-                } else{ //bad passwd
-                    login_message.type = login_message.PID;
-                    strcpy(login_message.text, "0");
-                    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("0")+1, 0);
-                    users[i].failed_attempts++;
-                    
-                }
-            } else { //failed attempts max or user logged in
-                if(users[i].failed_attempts >= 3){ //limit login attempts
-                    login_message.type = login_message.PID;
-                    strcpy(login_message.text, "2");
-                    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("2")+1, 0);
-                    printf("Reached the limit of failed attempts, user is now blocked\n");
-                    
-                }
-                else if (users[i].is_logged == 1){ //user logged in
-                    login_message.type = login_message.PID;
-                    strcpy(login_message.text, "3");
-                    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("3")+1, 0);
-                    printf("User is already logged in another process\n");
-                    
-                }
-            }
-            return 0;
-        }
-    }
-    
-    login_message.type = login_message.PID;
-    strcpy(login_message.text, "4");
-    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen("4")+1, 0);
-    printf("Username not found!\n");
-    return 1;
 
 
 }
