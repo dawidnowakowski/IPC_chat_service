@@ -13,6 +13,7 @@
 
 struct msgbuf
 {
+    // LOGIN QUEUE
     // 1 - log in attempt
     // 2 - server's respond to log in attempt   
     //     text: 1-logged in,
@@ -20,7 +21,9 @@ struct msgbuf
     //           2-blocked access-reached limit of failed attempts
     //           3-user already logged in
     //           4-username not found
-    // 3 - join group
+    // USER QUEUE
+    // 3 - request join group
+    // 4 - server's respond for join group
     long type; 
     int PID;
     char text[1024];
@@ -49,8 +52,10 @@ int main(){
 
         //join group
         login_message.type = 3;
-        login_message.PID = 777;
+        login_message.PID = 2;
         msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(credits)+1, 0);
+        msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 4, 0);
+        printf("respond from server: %s\n", login_message.text);
     }
 
  

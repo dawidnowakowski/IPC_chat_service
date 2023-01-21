@@ -24,8 +24,8 @@ struct user
 struct group
 {
     int id;
-    char groupname[20];
-    int members_counter;
+    char groupname[20];                 
+    int members;
     int members_PID[9];
 };
 
@@ -71,7 +71,6 @@ void openFileAndFillUserList(char filename[], struct user users[]){
                 strcpy(users[counter].password, passwordbuf);
                 passwordbuf[0] = '\0';
                 users[counter].is_logged = 0;
-                // users[counter].groups[] = ;
                 for(int c=0; c<3; c++){
                     users[counter].groups[c] = -1;
                 }
@@ -88,7 +87,6 @@ void openFileAndFillUserList(char filename[], struct user users[]){
     }
     strcpy(users[counter].password, passwordbuf); //last password cant be copied in loop
     users[counter].is_logged = 0;
-    // users[counter].groups = {0,0,0};
     users[counter].PID = 0;
     users[counter].failed_attempts = 0;
     users[counter].QUEUEID = -1;
@@ -142,6 +140,10 @@ void openFileAndFillGroups(struct group groups[], char filename[]){
             groupnamebuf[j] = '\0';
             strcpy(groups[id].groupname, groupnamebuf);
             groups[id].id = id;
+            for(int c=0; c<9; c++){
+                groups[id].members_PID[c] = -1;;
+            }
+            groups[id].members = 0;
             groupnamebuf[0] = '\0';
             
             id++;
@@ -152,12 +154,21 @@ void openFileAndFillGroups(struct group groups[], char filename[]){
     }
     strcpy(groups[id].groupname, groupnamebuf);
     groups[id].id = id;
+    for(int c=0; c<9; c++){
+                groups[id].members_PID[c] = -1;;
+            }
+            groups[id].members = 0;
 }
 
 void printAllGroups(struct group groups[], int len){
 
     for(int j=0; j < len; j++){
         printf("%d: %s %d\n", j, groups[j].groupname, groups[j].id);
+        printf("Members:\n");
+        for(int c=0; c<9; c++){
+            printf("%d\n", groups[j].members_PID[c]);
+        }
+
 
     }
 }
@@ -232,9 +243,26 @@ void handleLogOut(struct msgbuf message, struct user *user){
     user->QUEUEID = -1;
 }
 
-void handleJoinGroup(struct msgbuf message, struct user *user){
+void handleJoinGroup(struct msgbuf message, struct user *user, struct group groups[]){
+    //message.PID is the id of the group
     printf("IN JOIN\n");
     printf("grupa: %d\n", message.PID);
+
+    if(message.PID >=0 && message.PID <=2){
+        for(int c=0; c<3; c++){
+            if(groups[c].id == message.PID && groups[c].members<=8){
+                for(int i=0; i<9; i++){
+                    if (groups[c].members_PID[i] == -1){
+                        groups[c].members_PID[i] = user->PID;
+                        message.type = 4;
+                        strcpy(message.text, "1");
+                        msgsnd(user->QUEUEID, &message, sizeof(int) +strlen("1")+1, 0);
+                        
+                    } 
+                }
+            }
+        }
+    }
 
 }
 
@@ -252,7 +280,7 @@ int main(){
     // open groups file and fill array with groups
     struct group groups[3];
     openFileAndFillGroups(groups, "topic_groups");
-    // int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
+    int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
     // printAllGroups(groups, num_of_groups);
 
     struct msgbuf message;    
@@ -282,17 +310,14 @@ int main(){
                     // run = 0;
                 }      
                 msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 3, IPC_NOWAIT);
-                handleJoinGroup(message, &users[x]);
+                handleJoinGroup(message, &users[x], groups);
+                run = 0;
+                
             }
         }
-
-
-        
-
-
-        
     }
-    // printAllUsersInfo(users, num_of_users);
+    printAllGroups(groups, num_of_groups);
+    printAllUsersInfo(users, num_of_users);
 
     //TESTING PLAYGROUND    
     // for(int x=0; x<num_of_users; x++){
