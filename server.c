@@ -144,19 +144,7 @@ void printAllGroups(struct group groups[], int len){
     }
 }
 
-void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struct user* ACTIVE_USERS[], struct user users[], int* ACTIVE_USERS_COUNTER){
-    // for(int x=0; x<num_of_users; x++){
-    //     // ACTIVE_USERS[x] = NULL;
-    //     ACTIVE_USERS[x] = &users[x];
-    //     printf("siema: %s\n", ACTIVE_USERS[x]->username);
-    // }
-
-    // for(int x=0; x<num_of_users; x++){
-    //     // ACTIVE_USERS[x] = NULL;
-    //     // ACTIVE_USERS[x] = &users[x];
-    //     printf("HERE: %s\n", ACTIVE_USERS[x]->username);
-    // }
-
+void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struct user users[], int* ACTIVE_USERS_COUNTER){
     char username[10];
     char passwd[10];
     char *token = strtok(message.text, " ");    
@@ -181,12 +169,7 @@ void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struc
                     msgsnd(LOGIN_QUEUE, &message, sizeof(int) + strlen("1")+1, 0);
                     printf("LOGGED IN %s %s\n", passwd, users[i].password);
                     
-                    for(int u=0; u<num_of_users; u++){
-                        if(ACTIVE_USERS[u] == NULL){
-                            ACTIVE_USERS[u] = &users[i];
-                            break;
-                        }
-                    }
+                
                     
                     
                 } else{ //bad passwd
@@ -224,6 +207,9 @@ void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struc
     return;
 }
 
+void handleLogOut(){
+    printf("WYLOGOWANO\n");
+}
 
 
 int main(){  
@@ -233,57 +219,53 @@ int main(){
     char filename[] = "user_list";
     openFileAndFillUserList(filename, users);
     int num_of_users = sizeof(users)/sizeof(users[0]);
+    int ACTIVE_USERS_COUNTER=0;
     // printAllUsers(users, num_of_users);
     // printAllUsersInfo(users, num_of_users);
 
-    //open groups file and fill array with groups
+    // open groups file and fill array with groups
     struct group groups[3];
     openFileAndFillGroups(groups, "topic_groups");
     int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
     printAllGroups(groups, num_of_groups);
 
-    struct user* ACTIVE_USERS[9];
-    int ACTIVE_USERS_COUNTER=0;
-    for(int x=0; x<num_of_users; x++){
-        ACTIVE_USERS[x] = NULL;
-        // ACTIVE_USERS[x] = &users[x];
-        // printf("%s\n", ACTIVE_USERS[x]->username);
-    }
+
+   
+   
 
     struct msgbuf message;    
     int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);  
     // msgrcv(LOGIN_QUEUE, &message, sizeof(int)+1024, 1, 0);
-    
-
-    
-
-    // handleLogIn(LOGIN_QUEUE, num_of_users, message, ACTIVE_USERS, users, &ACTIVE_USERS_COUNTER);
-
-    // msgrcv(LOGIN_QUEUE, &message, sizeof(int)+1024, 1, 0);
-    // handleLogIn(LOGIN_QUEUE, num_of_users, message, ACTIVE_USERS, users, &ACTIVE_USERS_COUNTER);
-    // printAllUsersInfo(users, num_of_users);
-    // for(int x=0; x<num_of_users; x++){
-    //     // ACTIVE_USERS[x] = NULL;
-    //     // ACTIVE_USERS[x] = &users[x];
-    //     printf("%s\n", ACTIVE_USERS[x]->username);
-    // }
 
 
 
     //MAIN LOOP
     while(1){
-
+        //LOGIN ATTEMPT
         if(msgrcv(LOGIN_QUEUE, &message, sizeof(int)+1024, 1, IPC_NOWAIT) != -1){
-            handleLogIn(LOGIN_QUEUE, num_of_users, message, ACTIVE_USERS, users, &ACTIVE_USERS_COUNTER);
-        for(int x=0; x<num_of_users; x++){
-            // ACTIVE_USERS[x] = NULL;
-            // ACTIVE_USERS[x] = &users[x];
-            printf("%s siema\n", ACTIVE_USERS[x]->username);
+            handleLogIn(LOGIN_QUEUE, num_of_users, message, users, &ACTIVE_USERS_COUNTER);
+            for(int x=0; x<num_of_users; x++){
+                if(users[x].is_logged == 1){
+                    printf("%s\n", users[x].username);
+                }
+            }
+            printf("\n");
         }
 
-        } else{
-            // printf("-1\n");
+        //LOOK FOR REQUESTS FROM ACTIVE USERS
+        for(int x=0; x<num_of_users; x++){
+            if (users[x].is_logged == 1){
+                msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 2, 0);
+                printf("dostano wylogowanie\n");
+                handleLogOut();
+
+
+                
+            }
         }
+        
+
+
         
     }
 

@@ -29,7 +29,8 @@ int main(){
     int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);   
     int PID = getpid();
     struct msgbuf login_message;
-    char credits[] = "test3 passwd3";
+    // char credits[] = "test3 passwd3";
+    char credits[] = "test5 passwd5";
     strcpy(login_message.text, credits);
     login_message.PID = PID;
     login_message.type = 1;
@@ -38,15 +39,16 @@ int main(){
     msgrcv(LOGIN_QUEUE, &login_message, sizeof(int)+1024, PID, 0);
     printf("PID:%d text:%s\n", login_message.PID, login_message.text);
 
+    if(strcmp(login_message.text, "1")==0){
+        int MY_QUEUE = msgget(PID, 0664 | IPC_CREAT);
+        login_message.type = 2;
+        msgsnd(MY_QUEUE, &login_message, sizeof(int) + strlen(credits)+1, 0);
+        printf("wyslano logout\n");
+    }
 
-    char credits2[] = "test5 passwd5";
-    strcpy(login_message.text, credits2);
-    login_message.PID = PID;
-    login_message.type = 1;
+ 
 
-    msgsnd(LOGIN_QUEUE, &login_message, sizeof(int) + strlen(credits)+1, 0);
-    msgrcv(LOGIN_QUEUE, &login_message, sizeof(int)+1024, PID, 0);
-    printf("PID:%d text:%s\n", login_message.PID, login_message.text);
+
 
 
 
