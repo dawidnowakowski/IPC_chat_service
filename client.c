@@ -20,6 +20,7 @@ struct msgbuf
     //           2-blocked access-reached limit of failed attempts
     //           3-user already logged in
     //           4-username not found
+    // 3 - join group
     long type; 
     int PID;
     char text[1024];
@@ -41,9 +42,15 @@ int main(){
 
     if(strcmp(login_message.text, "1")==0){
         int MY_QUEUE = msgget(PID, 0664 | IPC_CREAT);
-        login_message.type = 2;
-        msgsnd(MY_QUEUE, &login_message, sizeof(int) + strlen(credits)+1, 0);
-        printf("wyslano logout\n");
+        // logout
+        // login_message.type = 2;
+        // msgsnd(MY_QUEUE, &login_message, sizeof(int) + strlen(credits)+1, 0);
+        // printf("wyslano logout\n");
+
+        //join group
+        login_message.type = 3;
+        login_message.PID = 777;
+        msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(credits)+1, 0);
     }
 
  

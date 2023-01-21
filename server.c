@@ -25,7 +25,8 @@ struct group
 {
     int id;
     char groupname[20];
-    struct user users[9]; // can it be blank? 
+    int members_counter;
+    int members_PID[9];
 };
 
 struct msgbuf
@@ -41,7 +42,7 @@ void openFileAndFillUserList(char filename[], struct user users[]){
     if(user_file == -1){
         printf("code: %d\n", errno);
         perror("Can't open file");
-        exit(1);
+        exit(1);  
     }
     
 
@@ -70,6 +71,10 @@ void openFileAndFillUserList(char filename[], struct user users[]){
                 strcpy(users[counter].password, passwordbuf);
                 passwordbuf[0] = '\0';
                 users[counter].is_logged = 0;
+                // users[counter].groups[] = ;
+                for(int c=0; c<3; c++){
+                    users[counter].groups[c] = -1;
+                }
                 users[counter].PID = 0;
                 users[counter].failed_attempts = 0;
                 users[counter].QUEUEID = -1;
@@ -83,9 +88,13 @@ void openFileAndFillUserList(char filename[], struct user users[]){
     }
     strcpy(users[counter].password, passwordbuf); //last password cant be copied in loop
     users[counter].is_logged = 0;
+    // users[counter].groups = {0,0,0};
     users[counter].PID = 0;
     users[counter].failed_attempts = 0;
     users[counter].QUEUEID = -1;
+    for(int c=0; c<3; c++){
+        users[counter].groups[c] = -1;
+    }
 }
 
 void printUserInfo(struct user user){
@@ -98,10 +107,19 @@ void printAllUsers(struct user users[], int len){
     }
 }
 
+void printUserGroups(struct user user){
+    printf("Groups:\n");
+    for(int c=0; c<3; c++){
+        printf("%d\n", user.groups[c]);
+    }
+}
+
 void printAllUsersInfo(struct user users[], int len){
     for(int j=0; j < len; j++){
         // printf("%d: username: %s password: %s is_logged: %d PID: %d failed_attempts: %d\n", j, users[j].username, users[j].password, users[j].is_logged, users[j].PID, users[j].failed_attempts);
         printUserInfo(users[j]);
+        printUserGroups(users[j]);
+        printf("\n");
     }
 }
 
@@ -207,13 +225,21 @@ void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struc
     return;
 }
 
-void handleLogOut(){
-    printf("WYLOGOWANO\n");
+void handleLogOut(struct msgbuf message, struct user *user){
+    user->is_logged = 0;
+    user->PID = 0;
+    user->failed_attempts = 0;
+    user->QUEUEID = -1;
+}
+
+void handleJoinGroup(struct msgbuf message, struct user *user){
+    printf("IN JOIN\n");
+    printf("grupa: %d\n", message.PID);
+
 }
 
 
 int main(){  
-    
     //open users file and fill array with users
     struct user users[9];
     char filename[] = "user_list";
@@ -226,21 +252,17 @@ int main(){
     // open groups file and fill array with groups
     struct group groups[3];
     openFileAndFillGroups(groups, "topic_groups");
-    int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
-    printAllGroups(groups, num_of_groups);
-
-
-   
-   
+    // int num_of_groups = sizeof(groups)/ sizeof(groups[0]);
+    // printAllGroups(groups, num_of_groups);
 
     struct msgbuf message;    
     int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);  
     // msgrcv(LOGIN_QUEUE, &message, sizeof(int)+1024, 1, 0);
 
 
-
+    int run = 1;
     //MAIN LOOP
-    while(1){
+    while(run){
         //LOGIN ATTEMPT
         if(msgrcv(LOGIN_QUEUE, &message, sizeof(int)+1024, 1, IPC_NOWAIT) != -1){
             handleLogIn(LOGIN_QUEUE, num_of_users, message, users, &ACTIVE_USERS_COUNTER);
@@ -255,19 +277,22 @@ int main(){
         //LOOK FOR REQUESTS FROM ACTIVE USERS
         for(int x=0; x<num_of_users; x++){
             if (users[x].is_logged == 1){
-                msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 2, 0);
-                printf("dostano wylogowanie\n");
-                handleLogOut();
-
-
-                
+                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 2, IPC_NOWAIT) != -1){
+                    handleLogOut(message, &users[x]);
+                    // run = 0;
+                }      
+                msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 3, IPC_NOWAIT);
+                handleJoinGroup(message, &users[x]);
             }
         }
+
+
         
 
 
         
     }
+    // printAllUsersInfo(users, num_of_users);
 
     //TESTING PLAYGROUND    
     // for(int x=0; x<num_of_users; x++){
@@ -293,14 +318,6 @@ int main(){
     // for(int xd=0; xd<15; xd++){
     //     printf("%d\n", QUEUES[xd]);
     // }
-
-
-    
-    
-
-    
-    
-
 
 
 }
