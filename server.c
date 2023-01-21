@@ -141,7 +141,7 @@ void openFileAndFillGroups(struct group groups[], char filename[]){
             strcpy(groups[id].groupname, groupnamebuf);
             groups[id].id = id;
             for(int c=0; c<9; c++){
-                groups[id].members_PID[c] = -1;;
+                groups[id].members_PID[c] = -1;
             }
             groups[id].members = 0;
             groupnamebuf[0] = '\0';
@@ -155,9 +155,9 @@ void openFileAndFillGroups(struct group groups[], char filename[]){
     strcpy(groups[id].groupname, groupnamebuf);
     groups[id].id = id;
     for(int c=0; c<9; c++){
-                groups[id].members_PID[c] = -1;;
-            }
-            groups[id].members = 0;
+            groups[id].members_PID[c] = -1;
+        }
+    groups[id].members = 0;
 }
 
 void printAllGroups(struct group groups[], int len){
@@ -192,6 +192,7 @@ void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struc
                 //else increment failed attempts counter
                 if(strcmp(passwd, users[i].password) == 0){ //good passwd
                     users[i].is_logged = 1; //switch user status
+                    users[i].PID = message.PID;
                     users[i].QUEUEID = msgget(message.PID, 0664 | IPC_CREAT);
                     message.type = message.PID;
                     strcpy(message.text, "1");
@@ -245,25 +246,86 @@ void handleLogOut(struct msgbuf message, struct user *user){
 
 void handleJoinGroup(struct msgbuf message, struct user *user, struct group groups[]){
     //message.PID is the id of the group
-    printf("IN JOIN\n");
-    printf("grupa: %d\n", message.PID);
-
+    //if group exists
     if(message.PID >=0 && message.PID <=2){
         for(int c=0; c<3; c++){
+            //if group is not full
             if(groups[c].id == message.PID && groups[c].members<=8){
                 for(int i=0; i<9; i++){
+                    //find right spot in an array
                     if (groups[c].members_PID[i] == -1){
                         groups[c].members_PID[i] = user->PID;
+                        groups[c].members++; 
+                        for(int k=0; k<3; k++){
+                            if(user->groups[k] == -1){
+                                user->groups[k] = message.PID;
+                                break;
+                            }
+                        }
+                        
                         message.type = 4;
                         strcpy(message.text, "1");
+                        //added to group
                         msgsnd(user->QUEUEID, &message, sizeof(int) +strlen("1")+1, 0);
-                        
+                        return;
                     } 
                 }
-            }
+            }             
+        }
+        //group is full
+        strcpy(message.text, "0");
+        message.type = 4;
+        msgsnd(user->QUEUEID,&message, sizeof(int)+strlen("0")+1, 0);
+        return;
+    }
+    //group not found
+    strcpy(message.text, "2");
+    message.type = 4;
+    msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("0")+1, 0);
+    return;
+
+}
+
+void handleLeaveGroup(struct msgbuf message, struct user *user, struct group groups[]){
+    //message.PID is group ID
+    if(message.PID >=0 && message.PID <=2){
+        for(int c=0; c<3; c++){
+            if(groups[c].id == message.PID){
+                for(int i=0; i<9; i++){
+                    //find right spot in an array
+                    if (groups[c].members_PID[i] == user->PID){
+                        groups[c].members_PID[i] = -1;
+                        groups[c].members--; 
+                        for(int k=0; k<3; k++){
+                            if(user->groups[k] == message.PID){
+                                user->groups[k] = -1;
+                                break;
+                            }
+                        }
+                        
+                        message.type = 6;
+                        strcpy(message.text, "1");
+                        //deleted from group
+                        msgsnd(user->QUEUEID, &message, sizeof(int) +strlen("1")+1, 0);
+                        return;
+                    } 
+                }
+                // you are not in that group
+                message.type = 6;
+                strcpy(message.text, "0");
+                msgsnd(user->QUEUEID, &message, sizeof(int) +strlen("1")+1, 0);
+                return;
+            } 
+
+            
+
         }
     }
-
+    //group not found
+    strcpy(message.text, "2");
+    message.type = 6;
+    msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("0")+1, 0);
+    return;
 }
 
 
@@ -305,13 +367,27 @@ int main(){
         //LOOK FOR REQUESTS FROM ACTIVE USERS
         for(int x=0; x<num_of_users; x++){
             if (users[x].is_logged == 1){
+                //LOGOUT
                 if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 2, IPC_NOWAIT) != -1){
                     handleLogOut(message, &users[x]);
-                    // run = 0;
+
                 }      
-                msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 3, IPC_NOWAIT);
-                handleJoinGroup(message, &users[x], groups);
-                run = 0;
+                //JOIN GROUP
+                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 3, IPC_NOWAIT) != -1){
+                    handleJoinGroup(message, &users[x], groups);
+                    printAllGroups(groups, num_of_groups);
+                    printAllUsersInfo(users, num_of_users);
+                }
+                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 5, IPC_NOWAIT) != -1){
+                    printf("HANDLELEAVE\n");
+                    handleLeaveGroup(message, &users[x], groups);
+                    run=0;
+                }
+                
+
+
+                
+
                 
             }
         }
