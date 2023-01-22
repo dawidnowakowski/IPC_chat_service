@@ -460,7 +460,7 @@ void handleSendLoggedUsersList(struct msgbuf message, struct user *user, struct 
         message.type = 11;
         message.PID = ACTIVE_USERS_COUNTER - 1;
         msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
-        printf("List of active users send\n");
+        printf("List of active users sent\n");
         return;
     }
 }
@@ -488,10 +488,54 @@ void handleSendUsersOfGroup(struct msgbuf message, struct user *user, struct gro
         message.type = 13;
         strcpy(message.text, respond);
         msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
-        printf("List of users in group send\n");
+        printf("List of users in group sent\n");
         return;
     }
 
+}
+
+void handleSendListOfAvailableGroups(struct msgbuf message, struct user *user, struct group groups[], int num_of_groups, int num_of_users){
+    char respond[1024]="";
+    for(int g=0; g<num_of_groups; g++){
+        int found=0;
+        for(int u=0; u<num_of_users; u++){
+            if(groups[g].members_PID[u] == user->PID){
+                found=1;
+            }
+        }
+        if(found == 0){
+            strcat(respond, groups[g].groupname);
+            strcat(respond, "\n");
+        }
+    }
+    if(strcmp(respond, "") == 0){
+        printf("There are no more available groups for this user\n");
+        message.type = 15;
+        strcpy(message.text, "0");
+        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
+        return;
+    } else{
+        message.type = 15;
+        strcpy(message.text, respond);
+        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
+        printf("List of available groups sent\n");
+        return;
+    }
+}
+
+void handleSendListOfAllGroups(struct msgbuf message, struct user *user, struct group groups[], int num_of_groups){
+    char respond[1024]="";
+    for(int g=0; g<num_of_groups; g++){        
+        strcat(respond, groups[g].groupname);
+        strcat(respond, "\n");
+    }
+
+    message.type = 17;
+    strcpy(message.text, respond);
+    msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
+    printf("List of available groups sent\n");
+    return;
+    
 }
 
 
@@ -578,7 +622,18 @@ int main(){
                     handleSendUsersOfGroup(message, &users[x], groups, users, num_of_users);
                     printf("\n");
                 }
-               
+                //REQUEST LIST OF AVAILABLE GROUPS
+                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 14, IPC_NOWAIT) != -1){
+                    printf("Recieved send available groups request from %s\n", users[x].username);
+                    handleSendListOfAvailableGroups(message, &users[x], groups, num_of_groups, num_of_users);
+                    printf("\n");
+                }
+                //REQUEST LIST OF ALL GROUPS
+                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 16, IPC_NOWAIT) != -1){
+                    printf("Recieved send list of all groups request from %s\n", users[x].username);
+                    handleSendListOfAllGroups(message, &users[x], groups, num_of_groups);
+                    printf("\n");
+                }
             }
         }
     }

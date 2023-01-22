@@ -53,6 +53,14 @@ struct msgbuf
     // 13 - server's respond with users of group list
     //      text: 0 - no users in that group
     //            else: text format "groupname\n"
+    // 14 - request for available groups
+    // 15 - server's respond with available groups
+    //      text: 0 - no available groups
+    //            else: text format "groupname\n"
+    // 16 - request for ALL groups
+    // 17 - server's respond with ALL groups
+    //      text: all groups in format "groupname\n"
+
 
     long type; 
     int PID;
@@ -125,6 +133,18 @@ int main(){
         // msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
         // msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 13, 0);
         // printf("GROUP USERS respond from server:%s \n", login_message.text);
+
+        // request users of group list
+        login_message.type = 14;
+        msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
+        msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 15, 0);
+        printf("AVAILABLE GROUPS respond from server:\n%s \n", login_message.text);
+
+        // request users of group list
+        login_message.type = 16;
+        msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
+        msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 17, 0);
+        printf("ALL GROUPS respond from server:\n%s \n", login_message.text);
 
 
     }
