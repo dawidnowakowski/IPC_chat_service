@@ -185,7 +185,7 @@ void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struc
     int i=0;
     for(i=0; i<num_of_users; i++){
         if(strcmp(username, users[i].username) == 0){ //if username is found in user list
-            printf("%s %s\n", username, users[i].username);
+            // printf("%s %s\n", username, users[i].username);
             //if limit of wrong attempts is not reached and user is not logged in
             if(users[i].failed_attempts < 3 && users[i].is_logged == 0){ 
                 //if correct password send message and open message queue with PID as a key
@@ -197,7 +197,7 @@ void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struc
                     message.type = message.PID;
                     strcpy(message.text, "1");
                     msgsnd(LOGIN_QUEUE, &message, sizeof(int) + strlen("1")+1, 0);
-                    printf("LOGGED IN %s %s\n", passwd, users[i].password);
+                    printf("LOGGED IN %s %s\n", users[i].username, users[i].password);
                     
                 
                     
@@ -207,7 +207,7 @@ void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struc
                     strcpy(message.text, "0");
                     msgsnd(LOGIN_QUEUE, &message, sizeof(int) + strlen("0")+1, 0);
                     users[i].failed_attempts++;
-                    printf("Bad password");
+                    printf("Bad password\n");
                     
                 }
             } else { //failed attempts max or user logged in
@@ -241,7 +241,11 @@ void handleLogOut(struct msgbuf message, struct user *user){
     user->is_logged = 0;
     user->PID = 0;
     user->failed_attempts = 0;
+    message.type = 2;
+    msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("1")+1, 0);
+    // msgctl(user->QUEUEID, IPC_RMID, NULL);
     user->QUEUEID = -1;
+    printf("Logged out %s\n", user->username);
 }
 
 void handleJoinGroup(struct msgbuf message, struct user *user, struct group groups[]){
@@ -266,6 +270,7 @@ void handleJoinGroup(struct msgbuf message, struct user *user, struct group grou
                         message.type = 4;
                         strcpy(message.text, "1");
                         //added to group
+                        printf("Added %s to group ID: %d\n", user->username, message.PID);
                         msgsnd(user->QUEUEID, &message, sizeof(int) +strlen("1")+1, 0);
                         return;
                     } 
@@ -275,12 +280,14 @@ void handleJoinGroup(struct msgbuf message, struct user *user, struct group grou
         //group is full
         strcpy(message.text, "0");
         message.type = 4;
+        printf("Group is full\n");
         msgsnd(user->QUEUEID,&message, sizeof(int)+strlen("0")+1, 0);
         return;
     }
     //group not found
     strcpy(message.text, "2");
     message.type = 4;
+    printf("Group not found\n");
     msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("0")+1, 0);
     return;
 
@@ -306,6 +313,7 @@ void handleLeaveGroup(struct msgbuf message, struct user *user, struct group gro
                         message.type = 6;
                         strcpy(message.text, "1");
                         //deleted from group
+                        printf("User %s deleted from group ID: %d\n", user->username, message.PID);
                         msgsnd(user->QUEUEID, &message, sizeof(int) +strlen("1")+1, 0);
                         return;
                     } 
@@ -313,6 +321,7 @@ void handleLeaveGroup(struct msgbuf message, struct user *user, struct group gro
                 // you are not in that group
                 message.type = 6;
                 strcpy(message.text, "0");
+                printf("You are not in that group\n");
                 msgsnd(user->QUEUEID, &message, sizeof(int) +strlen("1")+1, 0);
                 return;
             } 
@@ -324,6 +333,7 @@ void handleLeaveGroup(struct msgbuf message, struct user *user, struct group gro
     //group not found
     strcpy(message.text, "2");
     message.type = 6;
+    printf("Group not found\n");
     msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("0")+1, 0);
     return;
 }
@@ -355,12 +365,13 @@ int main(){
     while(run){
         //LOGIN ATTEMPT
         if(msgrcv(LOGIN_QUEUE, &message, sizeof(int)+1024, 1, IPC_NOWAIT) != -1){
+            printf("Recieved login request on %s\n", message.text);
             handleLogIn(LOGIN_QUEUE, num_of_users, message, users, &ACTIVE_USERS_COUNTER);
-            for(int x=0; x<num_of_users; x++){
-                if(users[x].is_logged == 1){
-                    printf("%s\n", users[x].username);
-                }
-            }
+            // for(int x=0; x<num_of_users; x++){
+            //     if(users[x].is_logged == 1){
+            //         printf("%s\n", users[x].username);
+            //     }
+            // }
             printf("\n");
         }
 
@@ -369,19 +380,25 @@ int main(){
             if (users[x].is_logged == 1){
                 //LOGOUT
                 if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 2, IPC_NOWAIT) != -1){
+                    printf("Recieved logout request from %s\n", users[x].username);
                     handleLogOut(message, &users[x]);
+                    printf("\n");
 
                 }      
                 //JOIN GROUP
                 if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 3, IPC_NOWAIT) != -1){
+                    printf("Recieved join group request from %s\n", users[x].username);
                     handleJoinGroup(message, &users[x], groups);
-                    printAllGroups(groups, num_of_groups);
-                    printAllUsersInfo(users, num_of_users);
+                    // printAllGroups(groups, num_of_groups);
+                    // printAllUsersInfo(users, num_of_users);
+                    printf("\n");
                 }
+                //LEAVE FROM GROUP
                 if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 5, IPC_NOWAIT) != -1){
-                    printf("HANDLELEAVE\n");
+                    printf("Recieved leave group request from %s\n", users[x].username);
                     handleLeaveGroup(message, &users[x], groups);
-                    run=0;
+                    printf("\n");
+                
                 }
                 
 
@@ -392,8 +409,8 @@ int main(){
             }
         }
     }
-    printAllGroups(groups, num_of_groups);
-    printAllUsersInfo(users, num_of_users);
+    // printAllGroups(groups, num_of_groups);
+    // printAllUsersInfo(users, num_of_users);
 
     //TESTING PLAYGROUND    
     // for(int x=0; x<num_of_users; x++){
