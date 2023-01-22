@@ -14,36 +14,41 @@
 struct msgbuf
 {
     // LOGIN QUEUE
-    // 1 - log in attempt
-    // 2 - server's respond to log in attempt   
-    //     text: 1-logged in,
+    //  1 - log in attempt
+    //  2 - server's respond to log in attempt   
+    //      text: 1-logged in,
     //           0-bad password
     //           2-blocked access-reached limit of failed attempts
     //           3-user already logged in
     //           4-username not found
     // USER QUEUE
-    // 1 - request logout
-    // 2 - server's respond for logout
-    //     text: 1 - logged out
-    //           0 - something went wrong
-    // 3 - request join group
-    // 4 - server's respond for join group
-    //     text: 1 - added to group
-    //           0 - group is full, sorry;
-    //           2 - group not found 
-    // 5 - request  to leave from group
-    // 6 - server's respond for join group
-    //           1 - deleted from group
-    //           0 - you are not in this group
-    //           2 - group not found
-    // 7 - request to send message
-    // 8 - server's respond to sending message
-    //     text: 1 - message sent
-    //           0 - wrong PID
-    //           2 - Reciever is not logged in
-    //           3 - Sender is the only user in group or group has no other members
-    //           4 - Sender can't send message to himself
-    // 9 - recieve message
+    //  1 - request logout
+    //  2 - server's respond for logout
+    //      text: 1 - logged out
+    //            0 - something went wrong
+    //  3 - request join group
+    //  4 - server's respond for join group
+    //      text: 1 - added to group
+    //            0 - group is full, sorry;
+    //            2 - group not found 
+    //  5 - request  to leave from group
+    //  6 - server's respond for join group
+    //      text: 1 - deleted from group
+    //            0 - you are not in this group
+    //            2 - group not found
+    //  7 - request to send message
+    //  8 - server's respond to sending message
+    //      text: 1 - message sent
+    //            0 - wrong PID
+    //            2 - Reciever is not logged in
+    //            3 - Sender is the only user in group or group has no other members
+    //            4 - Sender can't send message to himself
+    //  9 - recieve message (user site only, messages from users has type=9)
+    // 10 - request for online user list
+    // 11 - server's respond with user list
+    //      text: 0 - no other active users
+    //            else: PID = num of active users
+    //                  text format "username PID\n"
 
     long type; 
     int PID;
@@ -54,8 +59,9 @@ int main(){
     int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);   
     int PID = getpid();
     struct msgbuf login_message;
-    // char credits[] = "test5 passwd5";
-    char credits[] = "test3 passwd3";
+    char credits[] = "test5 passwd5";
+    // char credits[] = "test7 passwd7";
+    // char credits[] = "test3 passwd3";
     printf("CREDITS: %s\n", credits);
     strcpy(login_message.text, credits);
     login_message.PID = PID;
@@ -69,28 +75,28 @@ int main(){
         int MY_QUEUE = msgget(PID, 0664 | IPC_CREAT);
         
         // logout
-        // login_message.type = 2;
-        // msgsnd(MY_QUEUE, &login_message, sizeof(int) + strlen(credits)+1, 0);
-        // printf("wyslano logout\n");
-        // msgrcv(MY_QUEUE, &login_message, sizeof(int) + 1024, 2, 0);
-        // printf("LOGOUT respond from server %s\n", login_message.text);
-        // if(strcmp(login_message.text, "1") == 0){
-        //     msgctl(MY_QUEUE, IPC_RMID, NULL);
-        // }
+        login_message.type = 2;
+        msgsnd(MY_QUEUE, &login_message, sizeof(int) + strlen(credits)+1, 0);
+        printf("wyslano logout\n");
+        msgrcv(MY_QUEUE, &login_message, sizeof(int) + 1024, 2, 0);
+        printf("LOGOUT respond from server %s\n", login_message.text);
+        if(strcmp(login_message.text, "1") == 0){
+            msgctl(MY_QUEUE, IPC_RMID, NULL);
+        }
 
         //join group
-        login_message.type = 3;
-        login_message.PID = 0;
-        msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
-        msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 4, 0);
-        printf("JOIN respond from server: %s\n", login_message.text);
+        // login_message.type = 3;
+        // login_message.PID = 0;
+        // msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
+        // msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 4, 0);
+        // printf("JOIN respond from server: %s\n", login_message.text);
 
-        //leave group
-        login_message.type = 5;
-        login_message.PID = 0;
-        msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
-        msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 6, 0);
-        printf("DELETE respond from server: %s\n", login_message.text);
+        // leave group
+        // login_message.type = 5;
+        // login_message.PID = 0;
+        // msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
+        // msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 6, 0);
+        // printf("DELETE respond from server: %s\n", login_message.text);
 
         //send message
         //if PID <0;2> then to group
@@ -102,6 +108,13 @@ int main(){
         // msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
         // msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 8, 0);
         // printf("SNDMSG respond from server: %s\n", login_message.text);
+
+        //request logged users list
+        // login_message.type = 10;
+        // msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
+        // msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 11, 0);
+        // printf("USERS respond from server:%s \n", login_message.text);
+
 
     }
 

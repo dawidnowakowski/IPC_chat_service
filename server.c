@@ -173,7 +173,7 @@ void printAllGroups(struct group groups[], int len){
     }
 }
 
-void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struct user users[], int* ACTIVE_USERS_COUNTER){
+void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struct user users[], int *ACTIVE_USERS_COUNTER){
     char username[10];
     char passwd[10];
     char *token = strtok(message.text, " ");    
@@ -196,6 +196,7 @@ void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struc
                     users[i].QUEUEID = msgget(message.PID, 0664 | IPC_CREAT);
                     message.type = message.PID;
                     strcpy(message.text, "1");
+                    *ACTIVE_USERS_COUNTER += 1;
                     msgsnd(LOGIN_QUEUE, &message, sizeof(int) + strlen("1")+1, 0);
                     printf("LOGGED IN %s %s\n", users[i].username, users[i].password);
                     
@@ -237,7 +238,8 @@ void handleLogIn(int LOGIN_QUEUE, int num_of_users, struct msgbuf message, struc
     return;
 }
 
-void handleLogOut(struct msgbuf message, struct user *user){
+void handleLogOut(struct msgbuf message, struct user *user, int *ACTIVE_USERS_COUNTER){
+    *ACTIVE_USERS_COUNTER -= 1;
     user->is_logged = 0;
     user->PID = 0;
     user->failed_attempts = 0;
@@ -431,8 +433,42 @@ void handleSendMessage(struct msgbuf message, struct user *user, struct group gr
     }
 }
 
+void handleSendLoggedUsersList(struct msgbuf message, struct user *user, struct user users[], int ACTIVE_USERS_COUNTER){
+    printf("Active users: %d\n", ACTIVE_USERS_COUNTER);
+    if(ACTIVE_USERS_COUNTER == 1){
+        strcpy(message.text, "0");
+        message.type = 11;
+        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("0")+1, 0);
+        printf("There are no other active users\n");
+        return;
+    } else{
+        char respond[1024] = "";
+
+        int i;
+        char temp_PID[5];
+        for(int u=0; u<9; u++){
+            if(users[u].is_logged == 1 && users[u].PID != user->PID){
+                i = u;
+                sprintf(temp_PID, "%d", users[i].PID);
+                strcat(respond, users[u].username);
+                strcat(respond, " ");
+                strcat(respond, temp_PID);
+                strcat(respond, "\n");
+            }
+        }
+        strcpy(message.text, respond);
+        message.type = 11;
+        message.PID = ACTIVE_USERS_COUNTER - 1;
+        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
+        printf("List of active users send\n");
+        return;
+    }
+}
+
 
 int main(){  
+
+
     //open users file and fill array with users
     struct user users[9];
     char filename[] = "user_list";
@@ -459,12 +495,10 @@ int main(){
         //LOGIN ATTEMPT
         if(msgrcv(LOGIN_QUEUE, &message, sizeof(int)+1024, 1, IPC_NOWAIT) != -1){
             printf("Recieved login request on %s\n", message.text);
+            // printf("ACTIVE USERS: %d\n",ACTIVE_USERS_COUNTER);
             handleLogIn(LOGIN_QUEUE, num_of_users, message, users, &ACTIVE_USERS_COUNTER);
-            // for(int x=0; x<num_of_users; x++){
-            //     if(users[x].is_logged == 1){
-            //         printf("%s\n", users[x].username);
-            //     }
-            // }
+            // printf("ACTIVE USERS: %d\n",ACTIVE_USERS_COUNTER);
+         
             printf("\n");
         }
 
@@ -474,7 +508,9 @@ int main(){
                 //LOGOUT
                 if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 2, IPC_NOWAIT) != -1){
                     printf("Recieved logout request from %s\n", users[x].username);
-                    handleLogOut(message, &users[x]);
+                    // printf("ACTIVE USERS: %d\n",ACTIVE_USERS_COUNTER);
+                    handleLogOut(message, &users[x], &ACTIVE_USERS_COUNTER);
+                    // printf("ACTIVE USERS: %d\n",ACTIVE_USERS_COUNTER);
                     printf("\n");
 
                 }      
@@ -496,40 +532,25 @@ int main(){
                     printf("\n");
                 
                 }
-
-                // msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 7, 0);
-                // printf("Recieved send message request from %s\n", users[x].username);
+                //FORWARD MESSAGE
+                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 7, IPC_NOWAIT) != -1){
+                    printf("Recieved send message request from %s\n", users[x].username);
+                    handleSendMessage(message, &users[x], groups, users);
+                    printf("\n");
+                }
+                //REQUEST USERS LIST
+                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 10, IPC_NOWAIT) != -1){
+                    // printAllUsersInfo(users, num_of_users);
+                    printf("Recieved send user list request from %s\n", users[x].username);
+                    handleSendLoggedUsersList(message, &users[x], users, ACTIVE_USERS_COUNTER);
+                    printf("\n");
+                }
                
             }
         }
     }
     // printAllGroups(groups, num_of_groups);
     // printAllUsersInfo(users, num_of_users);
-
-    //TESTING PLAYGROUND    
-    // for(int x=0; x<num_of_users; x++){
-    //     // ACTIVE_USERS[x] = NULL;
-    //     ACTIVE_USERS[x] = &users[x];
-    //     printf("%s\n", ACTIVE_USERS[x]->username);
-    // }
-    // printAllUsersInfo(users, num_of_users);
-    // for(int x=0; x<num_of_users; x++){
-    //     ACTIVE_USERS[x] = NULL;
-    //     if(ACTIVE_USERS[x]==NULL){
-    //         printf("TEST\n");
-    //     }
-    //     // ACTIVE_USERS[x] = &users[x];
-    //     printf("%s\n", ACTIVE_USERS[x]->username);
-    // }
-    // printAllUsersInfo(users, num_of_users);
-
-    // for(int xd=0; xd<15; xd++){
-    //     QUEUES[xd]=xd;
-    // }
-    // test(&QUEUES_COUNTER, QUEUES);
-    // for(int xd=0; xd<15; xd++){
-    //     printf("%d\n", QUEUES[xd]);
-    // }
 
 
 }
