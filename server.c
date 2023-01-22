@@ -538,6 +538,35 @@ void handleSendListOfAllGroups(struct msgbuf message, struct user *user, struct 
     
 }
 
+void handleSendListOfUserGroups(struct msgbuf message, struct user *user, struct group groups[], int num_of_groups, int num_of_users){
+    char respond[1024]="";
+    for(int g=0; g<num_of_groups; g++){
+        int found=0;
+        for(int u=0; u<num_of_users; u++){
+            if(groups[g].members_PID[u] == user->PID){
+                found=1;
+            }
+        }
+        if(found == 1){
+            strcat(respond, groups[g].groupname);
+            strcat(respond, "\n");
+        }
+    }
+    if(strcmp(respond, "") == 0){
+        printf("You are not in any of groups\n");
+        message.type = 19;
+        strcpy(message.text, "0");
+        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
+        return;
+    } else{
+        message.type = 19;
+        strcpy(message.text, respond);
+        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
+        printf("List of user's groups sent\n");
+        return;
+    }
+}
+
 
 int main(){  
 
@@ -632,6 +661,12 @@ int main(){
                 if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 16, IPC_NOWAIT) != -1){
                     printf("Recieved send list of all groups request from %s\n", users[x].username);
                     handleSendListOfAllGroups(message, &users[x], groups, num_of_groups);
+                    printf("\n");
+                }
+                //REQUEST LIST OF USER'S GROUPS
+                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 18, IPC_NOWAIT) != -1){
+                    printf("Recieved send list of user's groups request from %s\n", users[x].username);
+                    handleSendListOfUserGroups(message, &users[x], groups, num_of_groups, num_of_users);
                     printf("\n");
                 }
             }

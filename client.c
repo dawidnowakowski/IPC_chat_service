@@ -146,6 +146,12 @@ int main(){
         msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 17, 0);
         printf("ALL GROUPS respond from server:\n%s \n", login_message.text);
 
+        // request users of all user's groups list
+        login_message.type = 18;
+        msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
+        msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 19, 0);
+        printf("User's groups respond from server:\n%s \n", login_message.text);
+
 
     }
 
