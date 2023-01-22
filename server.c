@@ -371,7 +371,7 @@ void handleSendMessage(struct msgbuf message, struct user *user, struct group gr
                         struct msgbuf copiedmsg;
                         copiedmsg.type = 9;
                         strcpy(copiedmsg.text, message.text);
-                        copiedmsg.PID = user->PID;
+                        copiedmsg.PID = message.PID;
                         msgsnd(users[u].QUEUEID, &copiedmsg, sizeof(int)+strlen(copiedmsg.text)+1, 0);
                         sent_messages++;
                     }
