@@ -40,6 +40,10 @@ struct msgbuf
     // 8 - server's respond to sending message
     //     text: 1 - message sent
     //           0 - wrong PID
+    //           2 - Reciever is not logged in
+    //           3 - Sender is the only user in group or group has no other members
+    //           4 - Sender can't send message to himself
+    // 9 - recieve message
 
     long type; 
     int PID;
@@ -77,7 +81,6 @@ int main(){
         //join group
         login_message.type = 3;
         login_message.PID = 0;
-        strcpy(login_message.text, "Halo\nnowa liania");
         msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
         msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 4, 0);
         printf("JOIN respond from server: %s\n", login_message.text);

@@ -349,28 +349,85 @@ void handleLeaveGroup(struct msgbuf message, struct user *user, struct group gro
 }
 
 void handleSendMessage(struct msgbuf message, struct user *user, struct group groups[], struct user users[]){
+    //PROGRAM ASSUMES THAT USER CANT CHOOSE GROUP WHICH HE IS NOT A MEMBER OF
+    if(message.PID == user->PID){ // SENDING TO YOURSELF
+        message.type = 8;
+        strcpy(message.text, "4");
+        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("4")+1, 0);
+        printf("Sender can't send message to himself\n");
+
+        return;
+    }
+
     if(message.PID >= 0){
         //SEND TO GROUP OR USER
         if(message.PID < 3){ //GROUP
-            for(int c=0; c<3; c++){
-                if(groups[c].id == message.PID){ //IF GROUP PID IS CORRECT
-                //IF THERE ARE ANY MEMBERS IN THE GROUP CHECK IF USER IS IN GROUP
-                    if(groups[c].members > 0){
-
-                    } else{ //IF MEMBERS==0 THEN YOU ARE NOT IN THE GROUP
-
+            int sent_messages = 0;
+            for(int u=0; u<9; u++){ //for users
+                for(int g=0; g<3; g++){ //for groups in user struct
+                    if(users[u].groups[g] == message.PID && users[u].is_logged == 1){ //IF USER IN THAT GROUP AND IS LOGGED IN SEND MESSAGE
+                        struct msgbuf copiedmsg;
+                        copiedmsg.type = 9;
+                        strcpy(copiedmsg.text, message.text);
+                        copiedmsg.PID = user->PID;
+                        msgsnd(users[u].QUEUEID, &copiedmsg, sizeof(int)+strlen(copiedmsg.text)+1, 0);
+                        sent_messages++;
                     }
-                
                 }
             }
-        } else{ //USER
+            // CONFIRMATION TO SENDER
+            if(sent_messages == 0){ // NO MESSAGES SENT
+                message.type = 8;
+                strcpy(message.text, "3");
+                msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("3")+1, 0);
+                printf("Sender is the only member or other members are offline\n");
+                return;
+            } else{
+                message.type = 8;
+                strcpy(message.text, "1");
+                msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("1")+1, 0);
+                printf("Message send correctly to online groupID %d users\n",message.PID);
+                return;
+            }
 
+        } else{ //USER
+            for(int u=0; u<9; u++){
+                if(users[u].PID == message.PID){
+                    if(users[u].is_logged == 1){ //IF LOGGED IN SEND MESSAGE
+                        //COPY MSG AND SEND IT TO RECIEVER
+                        struct msgbuf copiedmsg;
+                        copiedmsg.type = 9;
+                        strcpy(copiedmsg.text, message.text);
+                        copiedmsg.PID = user->PID;
+                        msgsnd(users[u].QUEUEID, &copiedmsg, sizeof(int)+strlen(copiedmsg.text)+1, 0);
+                        //SEND CONFIRMATION TO SENDER
+                        message.type = 8;
+                        strcpy(message.text, "1");
+                        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("1")+1, 0);
+                        printf("Message send correctly from %s to %s\n", user->username, users[u].username);
+
+                    } else{ //RECIEVER NOT LOGGED IN
+                        message.type = 8;
+                        strcpy(message.text, "2");
+                        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("2")+1, 0);
+                        printf("Reciever is not logged in, message not send");
+                    }
+                    return;
+                }
+            }
+            //DIDNT FIND USER
+            printf("Wrong PID or group ID\n");
+            message.type = 8;
+            strcpy(message.text, "0");
+            msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("0")+1, 0);
+            return;
         }
-    } else{
+    } else{ // WRONG PID
         printf("Wrong PID or group ID\n");
         message.type = 8;
         strcpy(message.text, "0");
         msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("0")+1, 0);
+        return;
     }
 }
 
