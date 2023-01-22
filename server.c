@@ -164,7 +164,7 @@ void printAllGroups(struct group groups[], int len){
 
     for(int j=0; j < len; j++){
         printf("%d: %s %d\n", j, groups[j].groupname, groups[j].id);
-        printf("Members:\n");
+        printf("Members %d:\n", groups[j].members);
         for(int c=0; c<9; c++){
             printf("%d\n", groups[j].members_PID[c]);
         }
@@ -252,8 +252,18 @@ void handleJoinGroup(struct msgbuf message, struct user *user, struct group grou
     //message.PID is the id of the group
     //if group exists
     if(message.PID >=0 && message.PID <=2){
+        for(int g=0; g<3; g++){
+            if(user->groups[g] == message.PID){
+                message.type = 4;
+                strcpy(message.text, "3");
+                printf("User already in that group\n");
+                msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
+                return;
+            }
+        }
         for(int c=0; c<3; c++){
             //if group is not full
+            
             if(groups[c].id == message.PID && groups[c].members<=8){
                 for(int i=0; i<9; i++){
                     //find right spot in an array
@@ -338,6 +348,32 @@ void handleLeaveGroup(struct msgbuf message, struct user *user, struct group gro
     return;
 }
 
+void handleSendMessage(struct msgbuf message, struct user *user, struct group groups[], struct user users[]){
+    if(message.PID >= 0){
+        //SEND TO GROUP OR USER
+        if(message.PID < 3){ //GROUP
+            for(int c=0; c<3; c++){
+                if(groups[c].id == message.PID){ //IF GROUP PID IS CORRECT
+                //IF THERE ARE ANY MEMBERS IN THE GROUP CHECK IF USER IS IN GROUP
+                    if(groups[c].members > 0){
+
+                    } else{ //IF MEMBERS==0 THEN YOU ARE NOT IN THE GROUP
+
+                    }
+                
+                }
+            }
+        } else{ //USER
+
+        }
+    } else{
+        printf("Wrong PID or group ID\n");
+        message.type = 8;
+        strcpy(message.text, "0");
+        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("0")+1, 0);
+    }
+}
+
 
 int main(){  
     //open users file and fill array with users
@@ -388,6 +424,8 @@ int main(){
                 //JOIN GROUP
                 if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 3, IPC_NOWAIT) != -1){
                     printf("Recieved join group request from %s\n", users[x].username);
+                    run=0;
+                    break;
                     handleJoinGroup(message, &users[x], groups);
                     // printAllGroups(groups, num_of_groups);
                     // printAllUsersInfo(users, num_of_users);
@@ -397,15 +435,14 @@ int main(){
                 if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 5, IPC_NOWAIT) != -1){
                     printf("Recieved leave group request from %s\n", users[x].username);
                     handleLeaveGroup(message, &users[x], groups);
+                    // printAllGroups(groups, num_of_groups);
                     printf("\n");
                 
                 }
-                
 
-
-                
-
-                
+                // msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 7, 0);
+                // printf("Recieved send message request from %s\n", users[x].username);
+               
             }
         }
     }

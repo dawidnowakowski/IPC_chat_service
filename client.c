@@ -36,6 +36,10 @@ struct msgbuf
     //           1 - deleted from group
     //           0 - you are not in this group
     //           2 - group not found
+    // 7 - request to send message
+    // 8 - server's respond to sending message
+    //     text: 1 - message sent
+    //           0 - wrong PID
 
     long type; 
     int PID;
@@ -73,6 +77,7 @@ int main(){
         //join group
         login_message.type = 3;
         login_message.PID = 0;
+        strcpy(login_message.text, "Halo\nnowa liania");
         msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
         msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 4, 0);
         printf("JOIN respond from server: %s\n", login_message.text);
@@ -83,6 +88,18 @@ int main(){
         msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
         msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 6, 0);
         printf("DELETE respond from server: %s\n", login_message.text);
+
+        //send message
+        //if PID <0;2> then to group
+        //if PID higher than that to user
+        // login_message.type = 7;
+        // login_message.PID = 0;
+        // char IPCmessage[] = "siema co tam"; 
+        // strcpy(login_message.text, IPCmessage);
+        // msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
+        // msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 8, 0);
+        // printf("SNDMSG respond from server: %s\n", login_message.text);
+
     }
 
  
