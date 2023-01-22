@@ -49,6 +49,10 @@ struct msgbuf
     //      text: 0 - no other active users
     //            else: PID = num of active users
     //                  text format "username PID\n"
+    // 12 - request for list of users in group 
+    // 13 - server's respond with users of group list
+    //      text: 0 - no users in that group
+    //            else: text format "groupname\n"
 
     long type; 
     int PID;
@@ -59,9 +63,9 @@ int main(){
     int LOGIN_QUEUE = msgget(9000, 0664 | IPC_CREAT);   
     int PID = getpid();
     struct msgbuf login_message;
-    char credits[] = "test5 passwd5";
+    // char credits[] = "test5 passwd5";
     // char credits[] = "test7 passwd7";
-    // char credits[] = "test3 passwd3";
+    char credits[] = "test3 passwd3";
     printf("CREDITS: %s\n", credits);
     strcpy(login_message.text, credits);
     login_message.PID = PID;
@@ -75,21 +79,21 @@ int main(){
         int MY_QUEUE = msgget(PID, 0664 | IPC_CREAT);
         
         // logout
-        login_message.type = 2;
-        msgsnd(MY_QUEUE, &login_message, sizeof(int) + strlen(credits)+1, 0);
-        printf("wyslano logout\n");
-        msgrcv(MY_QUEUE, &login_message, sizeof(int) + 1024, 2, 0);
-        printf("LOGOUT respond from server %s\n", login_message.text);
-        if(strcmp(login_message.text, "1") == 0){
-            msgctl(MY_QUEUE, IPC_RMID, NULL);
-        }
+        // login_message.type = 2;
+        // msgsnd(MY_QUEUE, &login_message, sizeof(int) + strlen(credits)+1, 0);
+        // printf("wyslano logout\n");
+        // msgrcv(MY_QUEUE, &login_message, sizeof(int) + 1024, 2, 0);
+        // printf("LOGOUT respond from server %s\n", login_message.text);
+        // if(strcmp(login_message.text, "1") == 0){
+        //     msgctl(MY_QUEUE, IPC_RMID, NULL);
+        // }
 
-        //join group
-        // login_message.type = 3;
-        // login_message.PID = 0;
-        // msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
-        // msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 4, 0);
-        // printf("JOIN respond from server: %s\n", login_message.text);
+        // join group
+        login_message.type = 3;
+        login_message.PID = 1;
+        msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
+        msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 4, 0);
+        printf("JOIN respond from server: %s\n", login_message.text);
 
         // leave group
         // login_message.type = 5;
@@ -114,6 +118,13 @@ int main(){
         // msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
         // msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 11, 0);
         // printf("USERS respond from server:%s \n", login_message.text);
+
+        // request users of group list
+        // login_message.type = 12;
+        // login_message.PID = 1;
+        // msgsnd(MY_QUEUE, &login_message, sizeof(int)+strlen(login_message.text)+1, 0);
+        // msgrcv(MY_QUEUE, &login_message, sizeof(int)+1024, 13, 0);
+        // printf("GROUP USERS respond from server:%s \n", login_message.text);
 
 
     }

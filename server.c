@@ -465,6 +465,35 @@ void handleSendLoggedUsersList(struct msgbuf message, struct user *user, struct 
     }
 }
 
+void handleSendUsersOfGroup(struct msgbuf message, struct user *user, struct group groups[], struct user users[], int num_of_users){
+    //ASSUME GROUP EXISTS (USER SITE VERIFICATION)
+    int membs = 0;
+    char respond[1024];
+    for(int u=0; u<num_of_users; u++){
+        for(int g=0; g<3; g++){
+            if (users[u].groups[g] == message.PID){
+                strcat(respond, users[u].username);
+                strcat(respond, "\n");
+                membs++;
+            }
+        }
+    } 
+    if(membs == 0){
+        message.type = 13;
+        strcpy(message.text, "0");
+        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
+        printf("There are no users in that group\n");
+        return;
+    } else{
+        message.type = 13;
+        strcpy(message.text, respond);
+        msgsnd(user->QUEUEID, &message, sizeof(int)+strlen(message.text)+1, 0);
+        printf("List of users in group send\n");
+        return;
+    }
+
+}
+
 
 int main(){  
 
@@ -517,8 +546,6 @@ int main(){
                 //JOIN GROUP
                 if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 3, IPC_NOWAIT) != -1){
                     printf("Recieved join group request from %s\n", users[x].username);
-                    run=0;
-                    break;
                     handleJoinGroup(message, &users[x], groups);
                     // printAllGroups(groups, num_of_groups);
                     // printAllUsersInfo(users, num_of_users);
@@ -543,6 +570,12 @@ int main(){
                     // printAllUsersInfo(users, num_of_users);
                     printf("Recieved send user list request from %s\n", users[x].username);
                     handleSendLoggedUsersList(message, &users[x], users, ACTIVE_USERS_COUNTER);
+                    printf("\n");
+                }
+                //REQUEST LIST OF USERS IN GROUP
+                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 12, IPC_NOWAIT) != -1){
+                    printf("Recieved send users of group request from %s\n", users[x].username);
+                    handleSendUsersOfGroup(message, &users[x], groups, users, num_of_users);
                     printf("\n");
                 }
                
