@@ -367,7 +367,7 @@ void handleSendMessage(struct msgbuf message, struct user *user, struct group gr
             int sent_messages = 0;
             for(int u=0; u<9; u++){ //for users
                 for(int g=0; g<3; g++){ //for groups in user struct
-                    if(users[u].groups[g] == message.PID && users[u].is_logged == 1){ //IF USER IN THAT GROUP AND IS LOGGED IN SEND MESSAGE
+                    if(users[u].groups[g] == message.PID && users[u].is_logged == 1 && users[u].PID!=user->PID){ //IF USER IN THAT GROUP AND IS LOGGED IN SEND MESSAGE
                         struct msgbuf copiedmsg;
                         copiedmsg.type = 9;
                         strcpy(copiedmsg.text, message.text);
@@ -469,6 +469,7 @@ void handleSendUsersOfGroup(struct msgbuf message, struct user *user, struct gro
     //ASSUME GROUP EXISTS (USER SITE VERIFICATION)
     int membs = 0;
     char respond[1024];
+    respond[0]='\0';
     for(int u=0; u<num_of_users; u++){
         for(int g=0; g<3; g++){
             if (users[u].groups[g] == message.PID){
@@ -504,6 +505,10 @@ void handleSendListOfAvailableGroups(struct msgbuf message, struct user *user, s
             }
         }
         if(found == 0){
+            int temp=g+1;
+            char number[5];
+            sprintf(number, "%d. ", temp);   
+            strcat(respond, number);
             strcat(respond, groups[g].groupname);
             strcat(respond, "\n");
         }
@@ -525,7 +530,11 @@ void handleSendListOfAvailableGroups(struct msgbuf message, struct user *user, s
 
 void handleSendListOfAllGroups(struct msgbuf message, struct user *user, struct group groups[], int num_of_groups){
     char respond[1024]="";
-    for(int g=0; g<num_of_groups; g++){        
+    for(int g=0; g<num_of_groups; g++){  
+        int temp=g+1;
+        char number[5];
+        sprintf(number, "%d. ", temp);   
+        strcat(respond, number);
         strcat(respond, groups[g].groupname);
         strcat(respond, "\n");
     }
@@ -537,7 +546,6 @@ void handleSendListOfAllGroups(struct msgbuf message, struct user *user, struct 
     return;
     
 }
-
 void handleSendListOfUserGroups(struct msgbuf message, struct user *user, struct group groups[], int num_of_groups, int num_of_users){
     char respond[1024]="";
     for(int g=0; g<num_of_groups; g++){
@@ -548,6 +556,10 @@ void handleSendListOfUserGroups(struct msgbuf message, struct user *user, struct
             }
         }
         if(found == 1){
+            int temp=g+1;
+            char number[5];
+            sprintf(number, "%d. ", temp);   
+            strcat(respond, number);
             strcat(respond, groups[g].groupname);
             strcat(respond, "\n");
         }
@@ -566,6 +578,7 @@ void handleSendListOfUserGroups(struct msgbuf message, struct user *user, struct
         return;
     }
 }
+
 
 
 int main(){  
