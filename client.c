@@ -39,10 +39,11 @@ struct msgbuf
     //  7 - request to send message
     //  8 - server's respond to sending message
     //      text: 1 - message sent
-    //            0 - wrong PID
+    //            0 - wrong PID (user logged out during sending message)
     //            2 - Reciever is not logged in
     //            3 - Sender is the only user in group or group has no other members
     //            4 - Sender can't send message to himself
+    //            5 - Sender not in that group
     //  9 - recieve message (user site only, messages from users has type=9)
     // 10 - request for online user list
     // 11 - server's respond with user list
@@ -196,7 +197,7 @@ int main(){
                     }  
 
                     printf("Enter userID: \n");
-                    scanf("%d", &selected_user);
+                    scanf("%d", &selected_user); //check if user in group
                     if(selected_user>0 && selected_user<=n){
                         login_message.type = 7;
                         login_message.PID = atoi(users[selected_user-1].pid);
@@ -212,13 +213,13 @@ int main(){
                             printf("Reciever is no longer logged in\n");
                         }
                         else{
-                            printf("Something went wrong.\n");
+                            printf("Reciever logged out during sending message. Message wasn't sent\n");
                         }
                     }
                     else{
                         printf("This user doesn't exist.\n");
                     }
-                    sleep(2);
+                    sleep(3);
                 }
                 break;
             case 2:;
@@ -265,7 +266,7 @@ int main(){
                     scanf("%d", &selected_group);
                     
 
-                    if(selected_group>0 && selected_group<=n){
+                    if(selected_group>0 && selected_group<=3){
                         login_message.type = 7;
                         login_message.PID = selected_group-1;
                         char gmessage[1024];
@@ -282,6 +283,9 @@ int main(){
                         }
                         else if (strcmp(login_message.text, "3") == 0){
                             printf("You are the only person in that group or other members are no longer logged in.\n");
+                        }
+                        else if (strcmp(login_message.text, "5") == 0){
+                            printf("You are not in that group.\n");
                         }
                         else{
                             printf("Something went wrong.\n");
@@ -410,7 +414,7 @@ int main(){
                 break;
             case 10:;      
                 clear();    
-                login_message.type = 2;
+                login_message.type = 1;
                 msgsnd(MY_QUEUE, &login_message, sizeof(int) + strlen(login_message.text)+1, 0);
                 msgrcv(MY_QUEUE, &login_message, sizeof(int) + 1024, 2, 0);
                 if(strcmp(login_message.text, "1") == 0){
@@ -420,6 +424,7 @@ int main(){
                 }
                 else{
                     printf("Somthing went wrong.\n");
+                    sleep(3);
                     }                         
                 break;
             case 11:;

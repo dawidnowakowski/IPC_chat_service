@@ -244,8 +244,9 @@ void handleLogOut(struct msgbuf message, struct user *user, int *ACTIVE_USERS_CO
     user->PID = 0;
     user->failed_attempts = 0;
     message.type = 2;
+    strcpy(message.text,"1");
     msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("1")+1, 0);
-    // msgctl(user->QUEUEID, IPC_RMID, NULL);
+    msgctl(user->QUEUEID, IPC_RMID, NULL);
     user->QUEUEID = -1;
     printf("Logged out %s\n", user->username);
 }
@@ -350,7 +351,7 @@ void handleLeaveGroup(struct msgbuf message, struct user *user, struct group gro
     return;
 }
 
-void handleSendMessage(struct msgbuf message, struct user *user, struct group groups[], struct user users[]){
+void handleSendMessage(struct msgbuf message, struct user *user, struct group groups[], struct user users[], int num_of_groups, int num_of_users){
     //PROGRAM ASSUMES THAT USER CANT CHOOSE GROUP WHICH HE IS NOT A MEMBER OF
     if(message.PID == user->PID){ // SENDING TO YOURSELF
         message.type = 8;
@@ -364,6 +365,33 @@ void handleSendMessage(struct msgbuf message, struct user *user, struct group gr
     if(message.PID >= 0){
         //SEND TO GROUP OR USER
         if(message.PID < 3){ //GROUP
+            // printf("TO WHO? %d\n", message.PID);
+            // printf("num of groups: %d\n", num_of_groups);
+            //CHECK IF SENDER IN THAT GROUP
+            int in_group = 0;
+            for(int g=0; g<num_of_groups; g++){
+                // printf("%d = %d\n", groups[g].id, message.PID);
+                if(groups[g].id == message.PID){
+                    
+                    for(int u=0; u<num_of_users; u++){
+                        // printf("%s %d, %d\n", groups[g].groupname, groups[g].members_PID[u], user->PID);
+                        if(groups[g].members_PID[u] == user->PID){
+                            
+                            in_group = 1;
+                        }
+                    }
+                    break;
+                }
+            }
+            
+            if(in_group == 0){
+                printf("You are not in that group\n");
+                message.type = 8;
+                strcpy(message.text, "5");
+                msgsnd(user->QUEUEID, &message, sizeof(int)+strlen("5")+1, 0);
+                return;
+            }
+            
             int sent_messages = 0;
             for(int u=0; u<9; u++){ //for users
                 for(int g=0; g<3; g++){ //for groups in user struct
@@ -621,7 +649,7 @@ int main(){
         for(int x=0; x<num_of_users; x++){
             if (users[x].is_logged == 1){
                 //LOGOUT
-                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 2, IPC_NOWAIT) != -1){
+                if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 1, IPC_NOWAIT) != -1){
                     printf("Recieved logout request from %s\n", users[x].username);
                     // printf("ACTIVE USERS: %d\n",ACTIVE_USERS_COUNTER);
                     handleLogOut(message, &users[x], &ACTIVE_USERS_COUNTER);
@@ -648,7 +676,7 @@ int main(){
                 //FORWARD MESSAGE
                 if(msgrcv(users[x].QUEUEID, &message, sizeof(int)+1024, 7, IPC_NOWAIT) != -1){
                     printf("Recieved send message request from %s\n", users[x].username);
-                    handleSendMessage(message, &users[x], groups, users);
+                    handleSendMessage(message, &users[x], groups, users, num_of_groups, num_of_users);
                     printf("\n");
                 }
                 //REQUEST USERS LIST
