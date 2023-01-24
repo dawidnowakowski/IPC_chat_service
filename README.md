@@ -1,7 +1,7 @@
 # IPC_chat_service
 IPC chat service allows you to send messages between users (processes). Forwarding messages is provided by server process where all the conditions are checked. Users have to log in to do anything on the server. Users can join groups and send messages to groups. There is also a functionality that blocks user after 3 failed login attempts. This is the final project for one of ours subjects at University.
 
-How to run?
+How to run?<br />
 make all<br />
 then:<br />
 ./server (only one server to work properly)<br />
